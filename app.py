@@ -118,7 +118,7 @@ if 'datasets' not in st.session_state:
 if 'datasets_json' not in st.session_state:
     st.session_state.datasets_json = []
 if 'current_step' not in st.session_state:
-    st.session_state.current_step = 'config'  # config, upload, preview, json_edit, analysis
+    st.session_state.current_step = 'config'
 
 # -------------------- DYNAMIC CSS --------------------
 def apply_theme(theme_name):
@@ -297,13 +297,11 @@ def parse_file_to_dataframe(file):
             return pd.read_csv(file)
         elif file.type == "application/json":
             return pd.read_json(io.StringIO(file.getvalue().decode("utf-8")))
-        else:  # txt or other
+        else:
             content = file.getvalue().decode("utf-8")
-            # Try to parse as CSV
             try:
                 return pd.read_csv(io.StringIO(content))
             except:
-                # Create single column dataframe
                 lines = content.split('\n')
                 return pd.DataFrame({'content': lines})
     except Exception as e:
@@ -313,19 +311,16 @@ def parse_file_to_dataframe(file):
 def parse_text_to_dataframe(text):
     """Parse pasted text to pandas DataFrame."""
     try:
-        # Try CSV format first
         try:
             return pd.read_csv(io.StringIO(text))
         except:
             pass
         
-        # Try JSON format
         try:
             return pd.read_json(io.StringIO(text))
         except:
             pass
         
-        # Default: create single column
         lines = text.split('\n')
         return pd.DataFrame({'content': [line for line in lines if line.strip()]})
     except Exception as e:
@@ -340,7 +335,6 @@ def dataframe_to_json(df):
 with st.sidebar:
     st.header("⚙️ Configuration")
     
-    # Theme Selector
     st.subheader("🎨 Select Theme")
     theme_cols = st.columns(3)
     theme_names = list(THEMES.keys())
@@ -354,7 +348,6 @@ with st.sidebar:
     
     st.markdown("---")
     
-    # API Key Configuration
     st.subheader("🔑 API Key")
     api_key_input = st.text_input(
         "Gemini API Key:",
@@ -372,7 +365,6 @@ with st.sidebar:
     
     st.markdown("---")
     
-    # Progress Indicator
     st.subheader("📊 Progress")
     steps = {
         'config': '1️⃣ Configure',
@@ -508,7 +500,6 @@ elif st.session_state.current_step == 'preview':
             df = dataset['data']
             st.markdown(f"**Shape:** {df.shape[0]} rows × {df.shape[1]} columns")
             
-            # Show first 10 records
             st.dataframe(df.head(10), use_container_width=True)
             
             with st.expander(f"📈 Statistics for Dataset {i+1}"):
@@ -565,7 +556,6 @@ elif st.session_state.current_step == 'json_edit':
             )
             st.session_state.datasets_json[i]['edited_json'] = edited_json
             
-            # Validate JSON
             try:
                 json.loads(edited_json)
                 st.success("✅ Valid JSON")
@@ -580,7 +570,6 @@ elif st.session_state.current_step == 'json_edit':
             st.session_state.current_step = 'preview'
             st.rerun()
     with col2:
-        # Validate all JSONs
         all_valid = True
         for dataset_json in st.session_state.datasets_json:
             try:
@@ -600,7 +589,6 @@ elif st.session_state.current_step == 'json_edit':
 elif st.session_state.current_step == 'analysis':
     st.markdown("<div class='step-indicator'>🔬 Step 5: Multi-Agent Analysis</div>", unsafe_allow_html=True)
     
-    # Combine all datasets for analysis
     if 'combined_data' not in st.session_state.workflow_data:
         combined_text = ""
         for i, dataset_json in enumerate(st.session_state.datasets_json):
@@ -608,7 +596,6 @@ elif st.session_state.current_step == 'analysis':
             combined_text += dataset_json['edited_json']
         st.session_state.workflow_data['combined_data'] = combined_text
     
-    # Show combined data summary
     with st.expander("📦 Combined Dataset Summary", expanded=False):
         st.text_area(
             "All datasets combined:",
@@ -617,7 +604,6 @@ elif st.session_state.current_step == 'analysis':
             disabled=True
         )
     
-    # Generate initial summary if not exists
     if 'summary' not in st.session_state.workflow_data:
         if st.button("📊 Generate Initial Summary", type="primary"):
             with st.spinner("Generating summary..."):
@@ -649,7 +635,6 @@ elif st.session_state.current_step == 'analysis':
                 else:
                     st.error(f"❌ Summary generation failed: {summary_text}")
     
-    # Display summary
     if 'summary' in st.session_state.workflow_data:
         st.subheader("📊 Data Summary")
         st.markdown(
@@ -658,8 +643,6 @@ elif st.session_state.current_step == 'analysis':
         )
         
         st.markdown("---")
-        
-        # Agent workflow selection
         st.header("🤖 Agent Workflow Configuration")
         
         workflow_type = st.radio(
@@ -670,77 +653,70 @@ elif st.session_state.current_step == 'analysis':
         
         agent_names = [name for name in agents.keys() 
                        if name not in ['Data Transformer', 'Data Summarizer']]
+        
+        if workflow_type == "Single Agent":
+            if not agent_names:
+                st.warning("⚠️ No agents available for single agent execution.")
+            else:
+                if 'selected_single_agent' not in st.session_state:
+                    st.session_state.selected_single_agent = agent_names[0]
+                
+                if st.session_state.selected_single_agent not in agent_names:
+                    st.session_state.selected_single_agent = agent_names[0]
+                
+                try:
+                    current_index = agent_names.index(st.session_state.selected_single_agent)
+                except ValueError:
+                    current_index = 0
+                    st.session_state.selected_single_agent = agent_names[0]
+                
+                selected_agent = st.selectbox(
+                    "Select Agent:", 
+                    agent_names,
+                    index=current_index,
+                    key="agent_selector"
+                )
+                
+                if selected_agent != st.session_state.selected_single_agent:
+                    st.session_state.selected_single_agent = selected_agent
+                    st.rerun()
+                
+                agent_config = agents.get(selected_agent, {})
+                
+                with st.expander(f"⚙️ Configure '{selected_agent}'", expanded=True):
+                    prompt = st.text_area(
+                        "Prompt:",
+                        value=agent_config.get('default_prompt', ''),
+                        height=100,
+                        key=f"single_prompt_{selected_agent}",
+                        help="Customize the prompt for this agent"
+                    )
+                    
+                    col1, col2 = st.columns(2)
+                    
+                    with col1:
+                        temp = st.slider(
+                            "Temperature:",
+                            min_value=0.0,
+                            max_value=1.0,
+                            value=float(agent_config.get('temperature', 0.5)),
+                            step=0.05,
+                            key=f"single_temp_{selected_agent}",
+                            help="Controls randomness: 0 is focused, 1 is creative"
+                        )
+                    
+                    with col2:
+                        max_tok = st.number_input(
+                            "Max Tokens:",
+                            min_value=512,
+                            max_value=8192,
+                            value=int(agent_config.get('max_tokens', 4096)),
+                            step=256,
+                            key=f"single_tokens_{selected_agent}",
 ###
-if workflow_type == "Single Agent":
-    # Ensure we have available agents
-    if not agent_names:
-        st.warning("⚠️ No agents available for single agent execution.")
-    else:
-        # Initialize selected agent in session state
-        if 'selected_single_agent' not in st.session_state:
-            st.session_state.selected_single_agent = agent_names[0]
-        
-        # Validate stored agent still exists in current agent list
-        if st.session_state.selected_single_agent not in agent_names:
-            st.session_state.selected_single_agent = agent_names[0]
-        
-        # Get current index safely
-        try:
-            current_index = agent_names.index(st.session_state.selected_single_agent)
-        except ValueError:
-            current_index = 0
-            st.session_state.selected_single_agent = agent_names[0]
-        
-        # Agent selection dropdown
-        selected_agent = st.selectbox(
-            "Select Agent:", 
-            agent_names,
-            index=current_index,
-            key="agent_selector"
-        )
-        
-        # Update session state if selection changed
-        if selected_agent != st.session_state.selected_single_agent:
-            st.session_state.selected_single_agent = selected_agent
-            st.rerun()
-        
-        # Agent configuration
-        agent_config = agents.get(selected_agent, {})
-        
-        with st.expander(f"⚙️ Configure '{selected_agent}'", expanded=True):
-            # Prompt configuration
-            prompt = st.text_area(
-                "Prompt:",
-                value=agent_config.get('default_prompt', ''),
-                height=100,
-                key=f"single_prompt_{selected_agent}",
-                help="Customize the prompt for this agent"
-            )
-            
-            # Temperature and token configuration
-            col1, col2 = st.columns(2)
-            
-            with col1:
-                temp = st.slider(
-                    "Temperature:",
-                    min_value=0.0,
-                    max_value=1.0,
-                    value=float(agent_config.get('temperature', 0.5)),
-                    step=0.05,
-                    key=f"single_temp_{selected_agent}",
-                    help="Controls randomness: 0 is focused, 1 is creative"
-                )
-            
-            with col2:
-                max_tok = st.number_input(
-                    "Max Tokens:",
-                    min_value=512,
-                    max_value=8192,
-                    value=int(agent_config.get('max_tokens', 4096)),
-                    step=256,
-                    key=f"single_tokens_{selected_agent}",
-                    help="Maximum length of the response"
-                )
+
+                            help="Maximum length of the response"
+                        )
         
         # Execute button (outside expander for better visibility)
         st.markdown("---")
@@ -770,7 +746,7 @@ if workflow_type == "Single Agent":
                     else:
                         st.error(f"❌ Execution failed: {result}")
 
-else:  # Multi-Agent Sequence
+ else:  # Multi-Agent Sequence
     # Multi-agent implementation remains the same
     selected_agents = st.multiselect(
         "Select agents in order:", 
