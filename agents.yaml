@@ -1,10 +1,4 @@
 agents:
-  Agentbuilder1:
-    description: "Transform agents to description/default_prompt."
-    default_prompt: " Please transform agents descriptions to the sample form: "
-  Agentbuilder2:
-    description: "Transform agents to description/default_prompt/"
-    default_prompt: " Please transform agents descriptions to the sample form: "
   QMS_summarizer2:
     description: "QMS summarizer"
     default_prompt: "請將所提供觀察資料，依據[1]、[2]等內容放置報告資料對應位置，並以繁體中文產生markdown文件, 放置之資料以coral color標示(user will provide 觀察資料 and 報告資料) "
