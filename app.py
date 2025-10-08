@@ -671,170 +671,212 @@ elif st.session_state.current_step == 'analysis':
         agent_names = [name for name in agents.keys() 
                        if name not in ['Data Transformer', 'Data Summarizer']]
 ###
-        if workflow_type == "Single Agent":
-            # Initialize selected agent in session state if not exists
-            if 'selected_single_agent' not in st.session_state:
-                st.session_state.selected_single_agent = agent_names[0] if agent_names else None
-            
-            selected_agent = st.selectbox(
-                "Select Agent:", 
-                agent_names,
-                index=agent_names.index(st.session_state.selected_single_agent) if st.session_state.selected_single_agent in agent_names else 0,
-                key="agent_selector"
-            )
-            
-            # Update session state when selection changes
-            if selected_agent != st.session_state.selected_single_agent:
-                st.session_state.selected_single_agent = selected_agent
-                st.rerun()
-            
-            if selected_agent:
-                agent_config = agents.get(selected_agent, {})
-                with st.expander(f"⚙️ Configure '{selected_agent}'", expanded=True):
-                    # Use unique keys based on agent name to force reload
-                    prompt = st.text_area(
-                        "Prompt:",
-                        value=agent_config.get('default_prompt', ''),
-                        height=100,
-                        key=f"single_prompt_{selected_agent}"
-                    )
-                    col1, col2 = st.columns(2)
-                    with col1:
-                        temp = st.slider(
-                            "Temperature:",
-                            0.0, 1.0,
-                            float(agent_config.get('temperature', 0.5)),
-                            0.05,
-                            key=f"single_temp_{selected_agent}"
-                        )
-                    with col2:
-                        max_tok = st.number_input(
-                            "Max Tokens:",
-                            512, 8192,
-                            int(agent_config.get('max_tokens', 4096)),
-                            key=f"single_tokens_{selected_agent}"
-                        )
-
-                if st.button(f"🚀 Execute {selected_agent}", type="primary"):
-                    with st.spinner(f"Running {selected_agent}..."):
-                        success, result = execute_gemini_agent(
-                            prompt,
-                            st.session_state.workflow_data['combined_data'],
-                            temp,
-                            max_tok
-                        )
-                        if success:
-                            st.session_state.workflow_data['final_result'] = result
-                            st.success("✅ Agent execution completed!")
-                            st.rerun()
-                        else:
-                            st.error(f"❌ Execution failed: {result}")
-     else:  # Multi-Agent Sequence
-            selected_agents = st.multiselect("Select agents in order:", agent_names)
-            
-            if 'multi_agent_configs' not in st.session_state:
-                st.session_state.multi_agent_configs = {}
-            
-            for agent_name in selected_agents:
-                agent_config = agents.get(agent_name, {})
-                with st.expander(f"⚙️ Configure: {agent_name}", expanded=False):
-                    prompt = st.text_area(
-                        "Prompt:",
-                        value=agent_config.get('default_prompt', ''),
-                        height=100,
-                        key=f"multi_prompt_{agent_name}"
-                    )
-                    col1, col2 = st.columns(2)
-                    with col1:
-                        temp = st.slider(
-                            "Temperature:",
-                            0.0, 1.0,
-                            float(agent_config.get('temperature', 0.5)),
-                            0.05,
-                            key=f"multi_temp_{agent_name}"
-                        )
-                    with col2:
-                        max_tok = st.number_input(
-                            "Max Tokens:",
-                            512, 8192,
-                            int(agent_config.get('max_tokens', 4096)),
-                            key=f"multi_tokens_{agent_name}"
-                        )
-                    st.session_state.multi_agent_configs[agent_name] = {
-                        'prompt': prompt,
-                        'temp': temp,
-                        'max_tok': max_tok
-                    }
-
-            if st.button("🚀 Execute Multi-Agent Workflow", type="primary"):
-                if selected_agents:
-                    st.session_state.workflow_data.pop('final_result', None)
-                    st.session_state.workflow_data.pop('multi_agent_steps', None)
-                    
-                    with st.spinner("Running multi-agent workflow..."):
-                        current_data = st.session_state.workflow_data['combined_data']
-                        st.session_state.multi_agent_steps = []
-                        workflow_failed = False
-                        
-                        for i, agent_name in enumerate(selected_agents):
-                            st.info(f"▶️ Step {i+1}: {agent_name}")
-                            config = st.session_state.multi_agent_configs[agent_name]
-                            success, result = execute_gemini_agent(
-                                config['prompt'],
-                                current_data,
-                                config['temp'],
-                                config['max_tok']
-                            )
-                            if success:
-                                st.session_state.multi_agent_steps.append({
-                                    'agent': agent_name,
-                                    'output': result
-                                })
-                                current_data = result
-                            else:
-                                st.error(f"❌ Failed at Step {i+1} ({agent_name}): {result}")
-                                workflow_failed = True
-                                break
-                        
-                        if not workflow_failed:
-                            st.session_state.workflow_data['final_result'] = current_data
-                            st.success("✅ Multi-agent workflow completed!")
-                            st.rerun()
-                else:
-                    st.warning("⚠️ Please select at least one agent.")
-###
-# -------------------- MULTI-AGENT RESULTS --------------------
-if 'multi_agent_steps' in st.session_state and st.session_state.multi_agent_steps:
-    st.markdown("---")
-    st.header("📋 Workflow Results")
-    
-    for i, step in enumerate(st.session_state.multi_agent_steps):
-        st.subheader(f"🔹 Step {i+1}: {step['agent']}")
+if workflow_type == "Single Agent":
+    # Ensure we have available agents
+    if not agent_names:
+        st.warning("⚠️ No agents available for single agent execution.")
+    else:
+        # Initialize selected agent in session state
+        if 'selected_single_agent' not in st.session_state:
+            st.session_state.selected_single_agent = agent_names[0]
         
-        col1, col2 = st.columns([2, 1])
-        with col1:
-            edited_output = st.text_area(
-                f"Output from {step['agent']}:",
-                value=step.get('output_edited', step['output']),
-                height=200,
-                key=f"edited_step_{i}"
-            )
-            st.session_state.multi_agent_steps[i]['output_edited'] = edited_output
+        # Validate stored agent still exists in current agent list
+        if st.session_state.selected_single_agent not in agent_names:
+            st.session_state.selected_single_agent = agent_names[0]
         
-        with col2:
-            st.markdown("**Step Summary**")
-            st.info(f"Agent: {step['agent']}")
-            st.metric("Output Length", f"{len(edited_output)} chars")
-    
-    if st.button("💾 Update Final Result from Edits"):
-        final_edited = st.session_state.multi_agent_steps[-1].get(
-            'output_edited', 
-            st.session_state.multi_agent_steps[-1]['output']
+        # Get current index safely
+        try:
+            current_index = agent_names.index(st.session_state.selected_single_agent)
+        except ValueError:
+            current_index = 0
+            st.session_state.selected_single_agent = agent_names[0]
+        
+        # Agent selection dropdown
+        selected_agent = st.selectbox(
+            "Select Agent:", 
+            agent_names,
+            index=current_index,
+            key="agent_selector"
         )
-        st.session_state.workflow_data['final_result'] = final_edited
-        st.success("✅ Final result updated!")
-        st.rerun()
+        
+        # Update session state if selection changed
+        if selected_agent != st.session_state.selected_single_agent:
+            st.session_state.selected_single_agent = selected_agent
+            st.rerun()
+        
+        # Agent configuration
+        agent_config = agents.get(selected_agent, {})
+        
+        with st.expander(f"⚙️ Configure '{selected_agent}'", expanded=True):
+            # Prompt configuration
+            prompt = st.text_area(
+                "Prompt:",
+                value=agent_config.get('default_prompt', ''),
+                height=100,
+                key=f"single_prompt_{selected_agent}",
+                help="Customize the prompt for this agent"
+            )
+            
+            # Temperature and token configuration
+            col1, col2 = st.columns(2)
+            
+            with col1:
+                temp = st.slider(
+                    "Temperature:",
+                    min_value=0.0,
+                    max_value=1.0,
+                    value=float(agent_config.get('temperature', 0.5)),
+                    step=0.05,
+                    key=f"single_temp_{selected_agent}",
+                    help="Controls randomness: 0 is focused, 1 is creative"
+                )
+            
+            with col2:
+                max_tok = st.number_input(
+                    "Max Tokens:",
+                    min_value=512,
+                    max_value=8192,
+                    value=int(agent_config.get('max_tokens', 4096)),
+                    step=256,
+                    key=f"single_tokens_{selected_agent}",
+                    help="Maximum length of the response"
+                )
+        
+        # Execute button (outside expander for better visibility)
+        st.markdown("---")
+        
+        if st.button(
+            f"🚀 Execute {selected_agent}", 
+            type="primary", 
+            use_container_width=True,
+            key=f"execute_single_{selected_agent}"
+        ):
+            # Validate we have data to process
+            if 'combined_data' not in st.session_state.workflow_data:
+                st.error("❌ No data available. Please generate a summary first.")
+            else:
+                with st.spinner(f"Running {selected_agent}..."):
+                    success, result = execute_gemini_agent(
+                        prompt,
+                        st.session_state.workflow_data['combined_data'],
+                        temp,
+                        max_tok
+                    )
+                    
+                    if success:
+                        st.session_state.workflow_data['final_result'] = result
+                        st.success("✅ Agent execution completed!")
+                        st.rerun()
+                    else:
+                        st.error(f"❌ Execution failed: {result}")
 
+else:  # Multi-Agent Sequence
+    # Multi-agent implementation remains the same
+    selected_agents = st.multiselect(
+        "Select agents in order:", 
+        agent_names,
+        help="Choose multiple agents to run in sequence"
+    )
+    
+    if 'multi_agent_configs' not in st.session_state:
+        st.session_state.multi_agent_configs = {}
+    
+    # Configure each selected agent
+    for agent_name in selected_agents:
+        agent_config = agents.get(agent_name, {})
+        
+        with st.expander(f"⚙️ Configure: {agent_name}", expanded=False):
+            prompt = st.text_area(
+                "Prompt:",
+                value=agent_config.get('default_prompt', ''),
+                height=100,
+                key=f"multi_prompt_{agent_name}"
+            )
+            
+            col1, col2 = st.columns(2)
+            
+            with col1:
+                temp = st.slider(
+                    "Temperature:",
+                    min_value=0.0,
+                    max_value=1.0,
+                    value=float(agent_config.get('temperature', 0.5)),
+                    step=0.05,
+                    key=f"multi_temp_{agent_name}"
+                )
+            
+            with col2:
+                max_tok = st.number_input(
+                    "Max Tokens:",
+                    min_value=512,
+                    max_value=8192,
+                    value=int(agent_config.get('max_tokens', 4096)),
+                    step=256,
+                    key=f"multi_tokens_{agent_name}"
+                )
+            
+            # Store configuration
+            st.session_state.multi_agent_configs[agent_name] = {
+                'prompt': prompt,
+                'temp': temp,
+                'max_tok': max_tok
+            }
+    
+    # Execute multi-agent workflow
+    st.markdown("---")
+    
+    if st.button(
+        "🚀 Execute Multi-Agent Workflow", 
+        type="primary", 
+        use_container_width=True,
+        disabled=len(selected_agents) == 0
+    ):
+        if not selected_agents:
+            st.warning("⚠️ Please select at least one agent.")
+        elif 'combined_data' not in st.session_state.workflow_data:
+            st.error("❌ No data available. Please generate a summary first.")
+        else:
+            # Clear previous results
+            st.session_state.workflow_data.pop('final_result', None)
+            st.session_state.pop('multi_agent_steps', None)
+            
+            with st.spinner("Running multi-agent workflow..."):
+                current_data = st.session_state.workflow_data['combined_data']
+                st.session_state.multi_agent_steps = []
+                workflow_failed = False
+                
+                # Execute agents in sequence
+                for i, agent_name in enumerate(selected_agents):
+                    st.info(f"▶️ Step {i+1}/{len(selected_agents)}: {agent_name}")
+                    
+                    config = st.session_state.multi_agent_configs.get(agent_name, {})
+                    
+                    success, result = execute_gemini_agent(
+                        config.get('prompt', ''),
+                        current_data,
+                        config.get('temp', 0.5),
+                        config.get('max_tok', 4096)
+                    )
+                    
+                    if success:
+                        st.session_state.multi_agent_steps.append({
+                            'agent': agent_name,
+                            'output': result
+                        })
+                        current_data = result  # Chain output to next agent
+                        st.success(f"✅ Step {i+1} completed")
+                    else:
+                        st.error(f"❌ Failed at Step {i+1} ({agent_name}): {result}")
+                        workflow_failed = True
+                        break
+                
+                # Finalize workflow
+                if not workflow_failed:
+                    st.session_state.workflow_data['final_result'] = current_data
+                    st.success("✅ Multi-agent workflow completed successfully!")
+                    st.balloons()
+                    st.rerun()
+###
 # -------------------- FINAL RESULT --------------------
 if 'final_result' in st.session_state.workflow_data:
     st.markdown("---")
