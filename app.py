@@ -671,33 +671,49 @@ elif st.session_state.current_step == 'analysis':
         agent_names = [name for name in agents.keys() 
                        if name not in ['Data Transformer', 'Data Summarizer']]
         
-        if workflow_type == "Single Agent":
-            selected_agent = st.selectbox("Select Agent:", agent_names)
-            if selected_agent:
-                agent_config = agents.get(selected_agent, {})
-                with st.expander(f"⚙️ Configure '{selected_agent}'", expanded=True):
-                    prompt = st.text_area(
-                        "Prompt:",
-                        value=agent_config.get('default_prompt', ''),
-                        height=100,
-                        key="single_prompt"
-                    )
-                    col1, col2 = st.columns(2)
-                    with col1:
-                        temp = st.slider(
-                            "Temperature:",
-                            0.0, 1.0,
-                            float(agent_config.get('temperature', 0.5)),
-                            0.05,
-                            key="single_temp"
-                        )
-                    with col2:
-                        max_tok = st.number_input(
-                            "Max Tokens:",
-                            512, 8192,
-                            int(agent_config.get('max_tokens', 4096)),
-                            key="single_tokens"
-                        )
+if workflow_type == "Single Agent":
+    # Initialize selected agent in session state if not exists
+    if 'selected_single_agent' not in st.session_state:
+        st.session_state.selected_single_agent = agent_names[0] if agent_names else None
+    
+    selected_agent = st.selectbox(
+        "Select Agent:", 
+        agent_names,
+        index=agent_names.index(st.session_state.selected_single_agent) if st.session_state.selected_single_agent in agent_names else 0,
+        key="agent_selector"
+    )
+    
+    # Update session state when selection changes
+    if selected_agent != st.session_state.selected_single_agent:
+        st.session_state.selected_single_agent = selected_agent
+        st.rerun()
+    
+    if selected_agent:
+        agent_config = agents.get(selected_agent, {})
+        with st.expander(f"⚙️ Configure '{selected_agent}'", expanded=True):
+            # Use unique keys based on agent name to force reload
+            prompt = st.text_area(
+                "Prompt:",
+                value=agent_config.get('default_prompt', ''),
+                height=100,
+                key=f"single_prompt_{selected_agent}"
+            )
+            col1, col2 = st.columns(2)
+            with col1:
+                temp = st.slider(
+                    "Temperature:",
+                    0.0, 1.0,
+                    float(agent_config.get('temperature', 0.5)),
+                    0.05,
+                    key=f"single_temp_{selected_agent}"
+                )
+            with col2:
+                max_tok = st.number_input(
+                    "Max Tokens:",
+                    512, 8192,
+                    int(agent_config.get('max_tokens', 4096)),
+                    key=f"single_tokens_{selected_agent}"
+                )
 
                 if st.button(f"🚀 Execute {selected_agent}", type="primary"):
                     with st.spinner(f"Running {selected_agent}..."):
