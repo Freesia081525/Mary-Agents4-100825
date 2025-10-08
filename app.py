@@ -671,7 +671,7 @@ elif st.session_state.current_step == 'analysis':
         agent_names = [name for name in agents.keys() 
                        if name not in ['Data Transformer', 'Data Summarizer']]
 
-        if workflow_type == "Single Agent":
+if workflow_type == "Single Agent":
     # Initialize selected agent in session state if not exists
     if 'selected_single_agent' not in st.session_state:
         st.session_state.selected_single_agent = agent_names[0] if agent_names else None
@@ -716,6 +716,8 @@ elif st.session_state.current_step == 'analysis':
                 )
 
 
+
+
                 if st.button(f"🚀 Execute {selected_agent}", type="primary"):
                     with st.spinner(f"Running {selected_agent}..."):
                         success, result = execute_gemini_agent(
@@ -730,7 +732,7 @@ elif st.session_state.current_step == 'analysis':
                             st.rerun()
                         else:
                             st.error(f"❌ Execution failed: {result}")
-    else:  # Multi-Agent Sequence
+else:  # Multi-Agent Sequence
             selected_agents = st.multiselect("Select agents in order:", agent_names)
             
             if 'multi_agent_configs' not in st.session_state:
