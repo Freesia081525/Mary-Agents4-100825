@@ -727,7 +727,7 @@ if workflow_type == "Single Agent":
                             st.rerun()
                         else:
                             st.error(f"❌ Execution failed: {result}")
-        else:  # Multi-Agent Sequence
+    else:  # Multi-Agent Sequence
             selected_agents = st.multiselect("Select agents in order:", agent_names)
             
             if 'multi_agent_configs' not in st.session_state:
