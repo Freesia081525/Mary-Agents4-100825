@@ -746,13 +746,13 @@ elif st.session_state.current_step == 'analysis':
                     else:
                         st.error(f"❌ Execution failed: {result}")
 
- else:  # Multi-Agent Sequence
-    # Multi-agent implementation remains the same
-    selected_agents = st.multiselect(
-        "Select agents in order:", 
-        agent_names,
-        help="Choose multiple agents to run in sequence"
-    )
+        else:  # Multi-Agent Sequence
+           # Multi-agent implementation remains the same
+           selected_agents = st.multiselect(
+           "Select agents in order:", 
+           agent_names,
+            help="Choose multiple agents to run in sequence"
+         )
     
     if 'multi_agent_configs' not in st.session_state:
         st.session_state.multi_agent_configs = {}
