@@ -670,7 +670,7 @@ elif st.session_state.current_step == 'analysis':
         
         agent_names = [name for name in agents.keys() 
                        if name not in ['Data Transformer', 'Data Summarizer']]
-        
+###
 if workflow_type == "Single Agent":
     # Initialize selected agent in session state if not exists
     if 'selected_single_agent' not in st.session_state:
@@ -682,12 +682,10 @@ if workflow_type == "Single Agent":
         index=agent_names.index(st.session_state.selected_single_agent) if st.session_state.selected_single_agent in agent_names else 0,
         key="agent_selector"
     )
-    
     # Update session state when selection changes
     if selected_agent != st.session_state.selected_single_agent:
         st.session_state.selected_single_agent = selected_agent
         st.rerun()
-    
     if selected_agent:
         agent_config = agents.get(selected_agent, {})
         with st.expander(f"⚙️ Configure '{selected_agent}'", expanded=True):
@@ -729,7 +727,6 @@ if workflow_type == "Single Agent":
                             st.rerun()
                         else:
                             st.error(f"❌ Execution failed: {result}")
-
         else:  # Multi-Agent Sequence
             selected_agents = st.multiselect("Select agents in order:", agent_names)
             
@@ -803,7 +800,7 @@ if workflow_type == "Single Agent":
                             st.rerun()
                 else:
                     st.warning("⚠️ Please select at least one agent.")
-
+###
 # -------------------- MULTI-AGENT RESULTS --------------------
 if 'multi_agent_steps' in st.session_state and st.session_state.multi_agent_steps:
     st.markdown("---")
